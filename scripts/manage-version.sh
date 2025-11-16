@@ -51,8 +51,8 @@ show_usage() {
 }
 
 # Check if we're in the right directory
-if [ ! -f "packages/coin_flip/Move.toml" ]; then
-    print_error "This script must be run from the openplay-framework root directory"
+if [ ! -f "package/Move.toml" ]; then
+    print_error "This script must be run from the coin-flip-contracts root directory"
     exit 1
 fi
 
@@ -113,24 +113,23 @@ if [ -f "outputs/$ACTIVE_ENV/latest_coin_flip.env" ]; then
     source "outputs/$ACTIVE_ENV/latest_coin_flip.env"
     print_success "Loaded coin flip package environment variables"
 else
-    print_error "Coin flip package not deployed. Run ./scripts/deploy-coin-flip.sh first."
+    print_error "Coin flip package not deployed. Run ./scripts/deploy-package.sh first."
     exit 1
 fi
 
 # Validate that we have the required variables
-if [ -z "$CURRENT_coin_flip_PACKAGE_ID" ] || [ "$CURRENT_coin_flip_PACKAGE_ID" = "null" ]; then
+if [ -z "$CURRENT_COIN_FLIP_PACKAGE_ID" ] || [ "$CURRENT_COIN_FLIP_PACKAGE_ID" = "null" ]; then
     print_error "Coin flip package ID not found. Cannot proceed."
     exit 1
 fi
 
-if [ -z "$coin_flip_CAP" ] || [ "$coin_flip_CAP" = "null" ]; then
+if [ -z "$COIN_FLIP_CAP" ] || [ "$COIN_FLIP_CAP" = "null" ]; then
     print_error "Coin flip cap not found. Cannot proceed."
     exit 1
 fi
 
 # Set package variables for convenience
-COIN_FLIP_PACKAGE_ID="$CURRENT_coin_flip_PACKAGE_ID"
-COIN_FLIP_CAP="$coin_flip_CAP"
+COIN_FLIP_PACKAGE_ID="$CURRENT_COIN_FLIP_PACKAGE_ID"
 
 print_status "Using Coin Flip Package: $COIN_FLIP_PACKAGE_ID"
 print_status "Using Coin Flip Cap: $COIN_FLIP_CAP"

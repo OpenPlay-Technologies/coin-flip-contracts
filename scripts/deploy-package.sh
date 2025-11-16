@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Deploy OpenPlay Coin Flip Package
+# Deploy Coin Flip Package
 # This script deploys the coin_flip package and extracts important IDs to environment variables
 
 set -e  # Exit on any error
@@ -45,7 +45,10 @@ save_version_history() {
     local version="$2"
     local package_id="$3"
     local output_dir="outputs/$env"
-    local versions_file="$output_dir/coin_flip_versions.txt"
+    local versions_file="$output_dir/versions.txt"
+    
+    # Create output directory if it doesn't exist
+    mkdir -p "$output_dir"
     
     # Create versions file if it doesn't exist
     if [ ! -f "$versions_file" ]; then
@@ -61,7 +64,7 @@ save_version_history() {
 get_next_version() {
     local env="$1"
     local output_dir="outputs/$env"
-    local versions_file="$output_dir/coin_flip_versions.txt"
+    local versions_file="$output_dir/versions.txt"
     
     if [ ! -f "$versions_file" ]; then
         echo "1"
@@ -90,11 +93,11 @@ save_deployment_output() {
     # Save environment variables
     local env_file="$output_dir/${base_filename}.env"
     save_env_vars "$env_file" \
-        "CURRENT_coin_flip_PACKAGE_ID" \
-        "ORIGINAL_coin_flip_PACKAGE_ID" \
-        "coin_flip_CAP" \
-        "coin_flip_UPGRADE_CAP" \
-        "coin_flip_VERSION"
+        "CURRENT_COIN_FLIP_PACKAGE_ID" \
+        "ORIGINAL_COIN_FLIP_PACKAGE_ID" \
+        "COIN_FLIP_CAP" \
+        "COIN_FLIP_UPGRADE_CAP" \
+        "COIN_FLIP_VERSION"
     
     # Create latest symlink for easy access
     local latest_env="$output_dir/latest_coin_flip.env"
@@ -131,8 +134,8 @@ save_env_vars() {
 }
 
 # Check if we're in the right directory
-if [ ! -f "packages/coin_flip/Move.toml" ]; then
-    print_error "This script must be run from the openplay-framework root directory"
+if [ ! -f "package/Move.toml" ]; then
+    print_error "This script must be run from the coin-flip-contracts root directory"
     exit 1
 fi
 
@@ -165,12 +168,12 @@ if [ "$1" = "--restore" ]; then
         
         # Print current state
         echo ""
-        print_status "Current OpenPlay Coin Flip State:"
-        echo "  CURRENT_coin_flip_PACKAGE_ID: ${CURRENT_coin_flip_PACKAGE_ID:-'Not set'}"
-        echo "  ORIGINAL_coin_flip_PACKAGE_ID: ${ORIGINAL_coin_flip_PACKAGE_ID:-'Not set'}"
-        echo "  coin_flip_VERSION: ${coin_flip_VERSION:-'Not set'}"
-        echo "  coin_flip_CAP: ${coin_flip_CAP:-'Not set'}"
-        echo "  coin_flip_UPGRADE_CAP: ${coin_flip_UPGRADE_CAP:-'Not set'}"
+        print_status "Current Coin Flip State:"
+        echo "  CURRENT_COIN_FLIP_PACKAGE_ID: ${CURRENT_COIN_FLIP_PACKAGE_ID:-'Not set'}"
+        echo "  ORIGINAL_COIN_FLIP_PACKAGE_ID: ${ORIGINAL_COIN_FLIP_PACKAGE_ID:-'Not set'}"
+        echo "  COIN_FLIP_VERSION: ${COIN_FLIP_VERSION:-'Not set'}"
+        echo "  COIN_FLIP_CAP: ${COIN_FLIP_CAP:-'Not set'}"
+        echo "  COIN_FLIP_UPGRADE_CAP: ${COIN_FLIP_UPGRADE_CAP:-'Not set'}"
     else
         print_error "No state file found. Run deployment first."
         exit 1
@@ -178,10 +181,10 @@ if [ "$1" = "--restore" ]; then
     exit 0
 fi
 
-print_status "Deploying OpenPlay Coin Flip package..."
+print_status "Deploying Coin Flip package..."
 
 # Change to the coin flip package directory
-cd packages/coin_flip
+cd package
 
 # Deploy the package and capture the JSON output
 print_status "Publishing package..."
@@ -203,10 +206,10 @@ print_status "Extracting package information..."
 NEW_PACKAGE_ID=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.objectChanges[] | select(.type == "published") | .packageId')
 
 # Extract cap (owned by the sender)
-coin_flip_CAP=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.objectChanges[] | select(.objectType != null and (.objectType | contains("::game::CoinFlipCap"))) | .objectId')
+COIN_FLIP_CAP=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.objectChanges[] | select(.objectType != null and (.objectType | contains("::game::CoinFlipCap"))) | .objectId')
 
 # Extract upgrade cap (owned by the sender)
-coin_flip_UPGRADE_CAP=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.objectChanges[] | select(.objectType != null and (.objectType | contains("::package::UpgradeCap"))) | .objectId')
+COIN_FLIP_UPGRADE_CAP=$(echo "$DEPLOYMENT_OUTPUT" | jq -r '.objectChanges[] | select(.objectType != null and (.objectType | contains("::package::UpgradeCap"))) | .objectId')
 
 # Validate extracted values
 if [ -z "$NEW_PACKAGE_ID" ] || [ "$NEW_PACKAGE_ID" = "null" ]; then
@@ -214,49 +217,49 @@ if [ -z "$NEW_PACKAGE_ID" ] || [ "$NEW_PACKAGE_ID" = "null" ]; then
     exit 1
 fi
 
-if [ -z "$coin_flip_CAP" ] || [ "$coin_flip_CAP" = "null" ]; then
+if [ -z "$COIN_FLIP_CAP" ] || [ "$COIN_FLIP_CAP" = "null" ]; then
     print_error "Failed to extract cap ID"
     exit 1
 fi
 
-if [ -z "$coin_flip_UPGRADE_CAP" ] || [ "$coin_flip_UPGRADE_CAP" = "null" ]; then
+if [ -z "$COIN_FLIP_UPGRADE_CAP" ] || [ "$COIN_FLIP_UPGRADE_CAP" = "null" ]; then
     print_error "Failed to extract upgrade cap ID"
     exit 1
 fi
 
 # Get version number (this is a new deployment, so version 1)
-coin_flip_VERSION=1
+COIN_FLIP_VERSION=1
 
 # For initial deployment, both CURRENT and ORIGINAL are the same
-CURRENT_coin_flip_PACKAGE_ID="$NEW_PACKAGE_ID"
-ORIGINAL_coin_flip_PACKAGE_ID="$NEW_PACKAGE_ID"
+CURRENT_COIN_FLIP_PACKAGE_ID="$NEW_PACKAGE_ID"
+ORIGINAL_COIN_FLIP_PACKAGE_ID="$NEW_PACKAGE_ID"
 
 # Export variables for current session
-export CURRENT_coin_flip_PACKAGE_ID
-export ORIGINAL_coin_flip_PACKAGE_ID
-export coin_flip_VERSION
-export coin_flip_CAP
-export coin_flip_UPGRADE_CAP
+export CURRENT_COIN_FLIP_PACKAGE_ID
+export ORIGINAL_COIN_FLIP_PACKAGE_ID
+export COIN_FLIP_VERSION
+export COIN_FLIP_CAP
+export COIN_FLIP_UPGRADE_CAP
 
 # Return to root directory
-cd ../..
+cd ..
 
 # Save version history
-save_version_history "$ACTIVE_ENV" "$coin_flip_VERSION" "$NEW_PACKAGE_ID"
+save_version_history "$ACTIVE_ENV" "$COIN_FLIP_VERSION" "$NEW_PACKAGE_ID"
 
 # Save all deployment outputs to files
-save_deployment_output "$ACTIVE_ENV" "$TIMESTAMP" "$coin_flip_VERSION"
+save_deployment_output "$ACTIVE_ENV" "$TIMESTAMP" "$COIN_FLIP_VERSION"
 
 # Print summary
 echo ""
-print_success "OpenPlay Coin Flip deployment completed successfully!"
+print_success "Coin Flip deployment completed successfully!"
 echo ""
 print_status "Deployment Summary:"
-echo "  Version: $coin_flip_VERSION"
-echo "  Current Package ID: $CURRENT_coin_flip_PACKAGE_ID"
-echo "  Original Package ID: $ORIGINAL_coin_flip_PACKAGE_ID"
-echo "  Cap: $coin_flip_CAP"
-echo "  Upgrade Cap: $coin_flip_UPGRADE_CAP"
+echo "  Version: $COIN_FLIP_VERSION"
+echo "  Current Package ID: $CURRENT_COIN_FLIP_PACKAGE_ID"
+echo "  Original Package ID: $ORIGINAL_COIN_FLIP_PACKAGE_ID"
+echo "  Cap: $COIN_FLIP_CAP"
+echo "  Upgrade Cap: $COIN_FLIP_UPGRADE_CAP"
 echo ""
 print_status "Environment variables are now available in your current shell session."
 

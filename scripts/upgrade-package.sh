@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Upgrade OpenPlay Coin Flip Package
+# Upgrade Coin Flip Package
 # This script upgrades the coin_flip package using the original upgrade capability
 
 set -e  # Exit on any error
@@ -45,7 +45,10 @@ save_version_history() {
     local version="$2"
     local package_id="$3"
     local output_dir="outputs/$env"
-    local versions_file="$output_dir/coin_flip_versions.txt"
+    local versions_file="$output_dir/versions.txt"
+    
+    # Create output directory if it doesn't exist
+    mkdir -p "$output_dir"
     
     # Create versions file if it doesn't exist
     if [ ! -f "$versions_file" ]; then
@@ -61,7 +64,7 @@ save_version_history() {
 get_next_version() {
     local env="$1"
     local output_dir="outputs/$env"
-    local versions_file="$output_dir/coin_flip_versions.txt"
+    local versions_file="$output_dir/versions.txt"
     
     if [ ! -f "$versions_file" ]; then
         echo "1"
@@ -90,11 +93,11 @@ save_upgrade_output() {
     # Save environment variables
     local env_file="$output_dir/${base_filename}.env"
     save_env_vars "$env_file" \
-        "CURRENT_coin_flip_PACKAGE_ID" \
-        "ORIGINAL_coin_flip_PACKAGE_ID" \
-        "coin_flip_CAP" \
-        "coin_flip_UPGRADE_CAP" \
-        "coin_flip_VERSION"
+        "CURRENT_COIN_FLIP_PACKAGE_ID" \
+        "ORIGINAL_COIN_FLIP_PACKAGE_ID" \
+        "COIN_FLIP_CAP" \
+        "COIN_FLIP_UPGRADE_CAP" \
+        "COIN_FLIP_VERSION"
     
     # Create latest symlink for easy access
     local latest_env="$output_dir/latest_coin_flip.env"
@@ -129,8 +132,8 @@ save_env_vars() {
 }
 
 # Check if we're in the right directory
-if [ ! -f "packages/coin_flip/Move.toml" ]; then
-    print_error "This script must be run from the openplay-framework root directory"
+if [ ! -f "package/Move.toml" ]; then
+    print_error "This script must be run from the coin-flip-contracts root directory"
     exit 1
 fi
 
@@ -159,36 +162,36 @@ if [ -f "outputs/$ACTIVE_ENV/latest_coin_flip.env" ]; then
     source "outputs/$ACTIVE_ENV/latest_coin_flip.env"
     print_success "Loaded coin flip package environment variables"
 else
-    print_error "Coin flip package not deployed. Run ./scripts/deploy-coin-flip.sh first."
+    print_error "Coin flip package not deployed. Run ./scripts/deploy-package.sh first."
     exit 1
 fi
 
 # Validate that we have the required variables
-if [ -z "$coin_flip_UPGRADE_CAP" ] || [ "$coin_flip_UPGRADE_CAP" = "null" ]; then
+if [ -z "$COIN_FLIP_UPGRADE_CAP" ] || [ "$COIN_FLIP_UPGRADE_CAP" = "null" ]; then
     print_error "Upgrade capability not found. Cannot proceed with upgrade."
     exit 1
 fi
 
-if [ -z "$ORIGINAL_coin_flip_PACKAGE_ID" ] || [ "$ORIGINAL_coin_flip_PACKAGE_ID" = "null" ]; then
+if [ -z "$ORIGINAL_COIN_FLIP_PACKAGE_ID" ] || [ "$ORIGINAL_COIN_FLIP_PACKAGE_ID" = "null" ]; then
     print_error "Original package ID not found. Cannot proceed with upgrade."
     exit 1
 fi
 
 # Preserve original values (ORIGINAL_* stays the same, but we need to track previous CURRENT for display)
-ORIGINAL_UPGRADE_CAP="$coin_flip_UPGRADE_CAP"
-ORIGINAL_PACKAGE_ID="$ORIGINAL_coin_flip_PACKAGE_ID"
-PREVIOUS_PACKAGE_ID="${CURRENT_coin_flip_PACKAGE_ID:-$ORIGINAL_coin_flip_PACKAGE_ID}"
-ORIGINAL_CAP="$coin_flip_CAP"
+ORIGINAL_UPGRADE_CAP="$COIN_FLIP_UPGRADE_CAP"
+ORIGINAL_PACKAGE_ID="$ORIGINAL_COIN_FLIP_PACKAGE_ID"
+PREVIOUS_PACKAGE_ID="${CURRENT_COIN_FLIP_PACKAGE_ID:-$ORIGINAL_COIN_FLIP_PACKAGE_ID}"
+ORIGINAL_CAP="$COIN_FLIP_CAP"
 
 # Get next version number
 NEXT_VERSION=$(get_next_version "$ACTIVE_ENV")
 print_status "Upgrading to version $NEXT_VERSION"
 
-print_status "Upgrading OpenPlay Coin Flip package..."
+print_status "Upgrading Coin Flip package..."
 print_status "Using upgrade capability: $ORIGINAL_UPGRADE_CAP"
 
 # Change to the coin flip package directory
-cd packages/coin_flip
+cd package
 
 # Upgrade the package and capture the JSON output
 print_status "Upgrading package..."
@@ -216,40 +219,40 @@ if [ -z "$NEW_PACKAGE_ID" ] || [ "$NEW_PACKAGE_ID" = "null" ]; then
 fi
 
 # Update version variables
-coin_flip_VERSION="$NEXT_VERSION"
-CURRENT_coin_flip_PACKAGE_ID="$NEW_PACKAGE_ID"
+COIN_FLIP_VERSION="$NEXT_VERSION"
+CURRENT_COIN_FLIP_PACKAGE_ID="$NEW_PACKAGE_ID"
 # Keep original values unchanged
-ORIGINAL_coin_flip_PACKAGE_ID="$ORIGINAL_PACKAGE_ID"
-coin_flip_CAP="$ORIGINAL_CAP"
-coin_flip_UPGRADE_CAP="$ORIGINAL_UPGRADE_CAP"
+ORIGINAL_COIN_FLIP_PACKAGE_ID="$ORIGINAL_PACKAGE_ID"
+COIN_FLIP_CAP="$ORIGINAL_CAP"
+COIN_FLIP_UPGRADE_CAP="$ORIGINAL_UPGRADE_CAP"
 
 # Export variables for current session
-export CURRENT_coin_flip_PACKAGE_ID
-export ORIGINAL_coin_flip_PACKAGE_ID
-export coin_flip_VERSION
-export coin_flip_CAP
-export coin_flip_UPGRADE_CAP
+export CURRENT_COIN_FLIP_PACKAGE_ID
+export ORIGINAL_COIN_FLIP_PACKAGE_ID
+export COIN_FLIP_VERSION
+export COIN_FLIP_CAP
+export COIN_FLIP_UPGRADE_CAP
 
 # Return to root directory
-cd ../..
+cd ..
 
 # Save version history
-save_version_history "$ACTIVE_ENV" "$coin_flip_VERSION" "$NEW_PACKAGE_ID"
+save_version_history "$ACTIVE_ENV" "$COIN_FLIP_VERSION" "$NEW_PACKAGE_ID"
 
 # Save all upgrade outputs to files
-save_upgrade_output "$ACTIVE_ENV" "$TIMESTAMP" "$coin_flip_VERSION"
+save_upgrade_output "$ACTIVE_ENV" "$TIMESTAMP" "$COIN_FLIP_VERSION"
 
 # Print summary
 echo ""
-print_success "OpenPlay Coin Flip upgrade completed successfully!"
+print_success "Coin Flip upgrade completed successfully!"
 echo ""
 print_status "Upgrade Summary:"
-echo "  Version: $coin_flip_VERSION"
+echo "  Version: $COIN_FLIP_VERSION"
 echo "  Previous Package ID: $PREVIOUS_PACKAGE_ID"
-echo "  New Package ID: $CURRENT_coin_flip_PACKAGE_ID"
-echo "  Original Package ID: $ORIGINAL_coin_flip_PACKAGE_ID"
-echo "  Cap: $coin_flip_CAP"
-echo "  Upgrade Cap: $coin_flip_UPGRADE_CAP"
+echo "  New Package ID: $CURRENT_COIN_FLIP_PACKAGE_ID"
+echo "  Original Package ID: $ORIGINAL_COIN_FLIP_PACKAGE_ID"
+echo "  Cap: $COIN_FLIP_CAP"
+echo "  Upgrade Cap: $COIN_FLIP_UPGRADE_CAP"
 echo ""
 print_status "Environment variables are now available in your current shell session."
 

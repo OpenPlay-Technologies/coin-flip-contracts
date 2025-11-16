@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Create OpenPlay Coin Flip Game Instances
+# Create Coin Flip Game Instances
 # This script creates coin flip game instances with predefined parameter sets
 
 set -e  # Exit on any error
@@ -54,9 +54,9 @@ save_game_output() {
     # Save env file with game id, parameter store id, and game statistics id
     local env_file="$output_dir/${base_filename}.env"
     > "$env_file"
-    echo "export coin_flip_GAME_ID=\"$GAME_ID\"" >> "$env_file"
-    echo "export coin_flip_PARAM_STORE_ID=\"$PARAM_STORE_ID\"" >> "$env_file"
-    echo "export coin_flip_GAME_STATS_ID=\"$GAME_STATS_ID\"" >> "$env_file"
+    echo "export COIN_FLIP_GAME_ID=\"$GAME_ID\"" >> "$env_file"
+    echo "export COIN_FLIP_PARAM_STORE_ID=\"$PARAM_STORE_ID\"" >> "$env_file"
+    echo "export COIN_FLIP_GAME_STATS_ID=\"$GAME_STATS_ID\"" >> "$env_file"
     print_success "Game environment saved to $env_file"
 }
 
@@ -112,9 +112,96 @@ get_parameter_set() {
     esac
 }
 
+# Function to load core environment variables from openplay-core repo
+load_core_variables() {
+    local env="$1"
+    local core_repo="https://raw.githubusercontent.com/OpenPlay-Technologies/openplay-core/v1.1"
+    local core_env_file="outputs/$env/latest.env"
+    local local_core_env="outputs/$env/core_latest.env"
+    
+    # First, try to load from local file (manual override)
+    if [ -f "outputs/$env/latest.env" ]; then
+        print_status "Loading core variables from local file..."
+        source "outputs/$env/latest.env"
+        if [ -n "$CURRENT_OPENPLAY_CORE_PACKAGE_ID" ] && [ -n "$OPENPLAY_CORE_REGISTRY_ID" ]; then
+            print_success "Loaded core package environment variables from local file"
+            return 0
+        fi
+    fi
+    
+    # Second, try to load from local cache if it exists
+    if [ -f "$local_core_env" ]; then
+        # Check if the cached file is valid (contains export statements)
+        if head -1 "$local_core_env" 2>/dev/null | grep -q "^export"; then
+            print_status "Loading core variables from local cache..."
+            source "$local_core_env"
+            if [ -n "$CURRENT_OPENPLAY_CORE_PACKAGE_ID" ] && [ -n "$OPENPLAY_CORE_REGISTRY_ID" ]; then
+                print_success "Loaded core package environment variables from local cache"
+                return 0
+            fi
+        else
+            # Cache file is corrupted (contains a filename reference), remove it
+            print_warning "Cached core file appears to be corrupted, removing it..."
+            rm -f "$local_core_env"
+        fi
+    fi
+    
+    # Try to fetch from git repo
+    print_status "Fetching core variables from openplay-core repository..."
+    local temp_file
+    temp_file=$(mktemp)
+    
+    if curl -s -f "$core_repo/$core_env_file" -o "$temp_file" 2>/dev/null; then
+        # Check if the file is a symlink/reference (contains just a filename)
+        local file_content
+        file_content=$(cat "$temp_file" | tr -d '\n\r' | xargs)
+        
+        # If it looks like a filename reference (no export statements), fetch that file instead
+        if [[ ! "$file_content" =~ ^export ]]; then
+            # It's a symlink/reference file, get the actual filename
+            local actual_file="$file_content"
+            print_status "Following symlink to: $actual_file"
+            
+            # Fetch the actual file
+            if curl -s -f "$core_repo/outputs/$env/$actual_file" -o "$temp_file" 2>/dev/null; then
+                # Verify it contains export statements
+                if [[ "$(head -1 "$temp_file")" =~ ^export ]]; then
+                    # Create local cache directory if it doesn't exist
+                    mkdir -p "outputs/$env"
+                    cp "$temp_file" "$local_core_env"
+                    source "$local_core_env"
+                    rm -f "$temp_file"
+                    
+                    if [ -n "$CURRENT_OPENPLAY_CORE_PACKAGE_ID" ] && [ -n "$OPENPLAY_CORE_REGISTRY_ID" ]; then
+                        print_success "Loaded core package environment variables from repository"
+                        return 0
+                    fi
+                fi
+            fi
+        else
+            # It's a regular env file with export statements
+            # Create local cache directory if it doesn't exist
+            mkdir -p "outputs/$env"
+            cp "$temp_file" "$local_core_env"
+            source "$local_core_env"
+            rm -f "$temp_file"
+            
+            if [ -n "$CURRENT_OPENPLAY_CORE_PACKAGE_ID" ] && [ -n "$OPENPLAY_CORE_REGISTRY_ID" ]; then
+                print_success "Loaded core package environment variables from repository"
+                return 0
+            fi
+        fi
+    fi
+    
+    rm -f "$temp_file"
+    print_error "Failed to load core variables. Please ensure openplay-core is deployed and the outputs are available."
+    print_error "You can manually create outputs/$env/latest.env with the core variables, or ensure the repo has outputs/$env/latest.env available."
+    return 1
+}
+
 # Check if we're in the right directory
-if [ ! -f "packages/coin_flip/Move.toml" ]; then
-    print_error "This script must be run from the openplay-framework root directory"
+if [ ! -f "package/Move.toml" ]; then
+    print_error "This script must be run from the coin-flip-contracts root directory"
     exit 1
 fi
 
@@ -137,12 +224,9 @@ TIMESTAMP=$(get_timestamp)
 print_status "Active environment: $ACTIVE_ENV"
 print_status "Creation timestamp: $TIMESTAMP"
 
-# Load core environment variables first
-if [ -f "outputs/$ACTIVE_ENV/latest.env" ]; then
-    source "outputs/$ACTIVE_ENV/latest.env"
-    print_success "Loaded core package environment variables"
-else
-    print_error "Core package not deployed. Run ./scripts/deploy-core.sh first."
+# Load core environment variables from openplay-core repo
+if ! load_core_variables "$ACTIVE_ENV"; then
+    print_error "Failed to load core package environment variables"
     exit 1
 fi
 
@@ -151,20 +235,19 @@ if [ -f "outputs/$ACTIVE_ENV/latest_coin_flip.env" ]; then
     source "outputs/$ACTIVE_ENV/latest_coin_flip.env"
     print_success "Loaded coin flip package environment variables"
 else
-    print_error "Coin flip package not deployed. Run ./scripts/deploy-coin-flip.sh first."
+    print_error "Coin flip package not deployed. Run ./scripts/deploy-package.sh first."
     exit 1
 fi
 
 # Check if package variables are loaded
-if [ -z "$CURRENT_coin_flip_PACKAGE_ID" ] || [ -z "$coin_flip_CAP" ] || [ -z "$CURRENT_OPENPLAY_CORE_PACKAGE_ID" ] || [ -z "$OPENPLAY_CORE_REGISTRY_ID" ]; then
+if [ -z "$CURRENT_COIN_FLIP_PACKAGE_ID" ] || [ -z "$COIN_FLIP_CAP" ] || [ -z "$CURRENT_OPENPLAY_CORE_PACKAGE_ID" ] || [ -z "$OPENPLAY_CORE_REGISTRY_ID" ]; then
     print_error "Required package variables not loaded. Ensure both core and coin flip packages are deployed."
     exit 1
 fi
 
 # Set package variables for convenience (use CURRENT_* to always use latest version)
 CORE_PACKAGE_ID="$CURRENT_OPENPLAY_CORE_PACKAGE_ID"
-COIN_FLIP_PACKAGE_ID="$CURRENT_coin_flip_PACKAGE_ID"
-COIN_FLIP_CAP="$coin_flip_CAP"
+COIN_FLIP_PACKAGE_ID="$CURRENT_COIN_FLIP_PACKAGE_ID"
 REGISTRY_ID="$OPENPLAY_CORE_REGISTRY_ID"
 
 # Initialize debug flag
