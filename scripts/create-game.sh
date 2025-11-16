@@ -65,7 +65,7 @@ show_parameter_sets() {
     echo ""
     print_status "Available Coin Flip Parameter Sets:"
     echo ""
-    for set_num in 1; do
+    for set_num in 1 2; do
         get_parameter_set "$set_num" >/dev/null 2>&1
 
         # Calculate SUI values (integer division, but display both raw and SUI)
@@ -98,11 +98,18 @@ get_parameter_set() {
     
     case $set_num in
         1)
-            MIN_STAKE=0
-            MAX_STAKE=10000000000
-            HOUSE_EDGE_BPS=500
+            MIN_STAKE=1000000000
+            MAX_STAKE=100000000000
+            HOUSE_EDGE_BPS=200
             PAYOUT_FACTOR_BPS=20000
             GAME_TYPE="DEFAULT"
+            ;;
+        2)
+            MIN_STAKE=10000000
+            MAX_STAKE=1000000000
+            HOUSE_EDGE_BPS=200
+            PAYOUT_FACTOR_BPS=20000
+            GAME_TYPE="LOW_STAKE"
             ;;
         *)
             print_error "Invalid parameter set: $set_num"
