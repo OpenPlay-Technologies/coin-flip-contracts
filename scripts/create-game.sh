@@ -122,7 +122,7 @@ get_parameter_set() {
 # Function to load core environment variables from openplay-core repo
 load_core_variables() {
     local env="$1"
-    local core_repo="https://raw.githubusercontent.com/OpenPlay-Technologies/openplay-core/v1.1"
+    local core_repo="https://raw.githubusercontent.com/OpenPlay-Technologies/openplay-core/v2.1"
     local core_env_file="outputs/$env/latest.env"
     local local_core_env="outputs/$env/core_latest.env"
     
@@ -300,7 +300,14 @@ print_status "Parameters: Min Stake=$MIN_STAKE, Max Stake=$MAX_STAKE, House Edge
 
 # Create the game
 print_status "Creating game instance..."
-GAME_OUTPUT=$(sui client ptb \
+
+# Run the ptb command and capture both stdout and stderr
+# Use a temporary file to preserve exit code and allow proper error handling
+TEMP_OUTPUT=$(mktemp)
+TEMP_ERROR=$(mktemp)
+
+set +e  # Temporarily disable exit on error to capture the command's actual exit status
+sui client ptb \
     --move-call sui::tx_context::sender \
     --assign sender \
     --assign min_stake $MIN_STAKE \
@@ -312,7 +319,31 @@ GAME_OUTPUT=$(sui client ptb \
     --move-call $COIN_FLIP_PACKAGE_ID::game::share createGameOutput.0 \
     --move-call $CORE_PACKAGE_ID::parameter_store::freeze_ createGameOutput.1 \
     --move-call $CORE_PACKAGE_ID::game_stats::share createGameOutput.2 \
-    --json)
+    --json > "$TEMP_OUTPUT" 2> "$TEMP_ERROR"
+
+PTBEXITSTATUS=$?
+set -e  # Re-enable exit on error
+
+# Capture output
+GAME_OUTPUT=$(cat "$TEMP_OUTPUT")
+GAME_ERROR=$(cat "$TEMP_ERROR")
+
+# If ptb command failed, show the error
+if [ $PTBEXITSTATUS -ne 0 ]; then
+    print_error "Game creation PTB command failed with exit code $PTBEXITSTATUS"
+    if [ -n "$GAME_ERROR" ]; then
+        print_error "Error output:"
+        echo "$GAME_ERROR"
+    fi
+    if [ -n "$GAME_OUTPUT" ]; then
+        print_status "Output:"
+        echo "$GAME_OUTPUT"
+    fi
+    rm -f "$TEMP_OUTPUT" "$TEMP_ERROR"
+    exit 1
+fi
+
+rm -f "$TEMP_OUTPUT" "$TEMP_ERROR"
 
 # Debug output if requested
 if [ "$DEBUG_MODE" = true ]; then

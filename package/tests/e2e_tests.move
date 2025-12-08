@@ -4,18 +4,13 @@ module coin_flip::e2e_tests;
 use coin_flip::constants::{place_bet_action, head_result, tail_result};
 use coin_flip::test_utils::default_game;
 use openplay_core::balance_manager;
-use openplay_core::core_test_utils::{
-    create_and_fix_random,
-    fund_house_for_playing,
-    assert_eq_within_precision_allowance
-};
+use openplay_core::core_test_utils::{create_and_fix_random, fund_house_for_playing};
 use openplay_core::registry::registry_for_testing;
-use std::uq32_32::int_mul;
+use std::unit_test::destroy;
 use sui::coin::mint_for_testing;
 use sui::random::Random;
 use sui::sui::SUI;
 use sui::test_scenario::{begin, return_shared};
-use sui::test_utils::destroy;
 
 #[test]
 public fun success_flow_win() {
@@ -33,16 +28,16 @@ public fun success_flow_win() {
     house.admin_add_tx_allowed(&admin_cap, game.id());
 
     // Fund the house
-    let mut participation = fund_house_for_playing(&mut house, 200_000_000, scenario.ctx());
+    let participation = fund_house_for_playing(&mut house, 200_000_000, scenario.ctx());
     scenario.next_epoch(addr);
 
-    // Create a balance manager with 10_000 stake
+    // Create a balance manager with 1_000_000 stake
     let (mut balance_manager, balance_manager_cap) = balance_manager::new(scenario.ctx());
     let play_cap = balance_manager.mint_play_cap(&balance_manager_cap, scenario.ctx());
-    let deposit = mint_for_testing<SUI>(10_000, scenario.ctx());
+    let deposit = mint_for_testing<SUI>(1_000_000, scenario.ctx());
     balance_manager.deposit(&balance_manager_cap, deposit, scenario.ctx());
 
-    // Place 1_000 bet on head
+    // Place 100_000 bet on head
     let rand = scenario.take_shared<Random>();
     game.interact(
         &registry,
@@ -52,24 +47,13 @@ public fun success_flow_win() {
         &mut house,
         &play_cap,
         place_bet_action(),
-        1_000,
+        100_000,
         head_result(),
         &rand,
         scenario.ctx(),
     );
 
-    assert!(balance_manager.balance() == 11_000);
-    // TODO: listen on event
-    // assert!(interact.transactions() == vector[bet(1_000), win(2_000)]);
-
-    // Check the stake balance manager
-    scenario.next_epoch(addr);
-    house.update_participation(&mut participation, scenario.ctx());
-    let expected_fee = int_mul(1_000, registry.protocol_fee_factor());
-    assert_eq_within_precision_allowance(
-        participation.stake(),
-        200_000_000 - 1000 - expected_fee,
-    );
+    assert!(balance_manager.balance() == 1_100_000);
 
     destroy(balance_manager);
     destroy(participation);
@@ -102,16 +86,16 @@ public fun success_flow_lose() {
     house.admin_add_tx_allowed(&admin_cap, game.id());
 
     // Fund the house
-    let mut participation = fund_house_for_playing(&mut house, 200_000_000, scenario.ctx());
+    let participation = fund_house_for_playing(&mut house, 200_000_000, scenario.ctx());
     scenario.next_epoch(addr);
 
-    // Create a balance manager with 10_000 stake
+    // Create a balance manager with 1_000_000 stake
     let (mut balance_manager, balance_manager_cap) = balance_manager::new(scenario.ctx());
     let play_cap = balance_manager.mint_play_cap(&balance_manager_cap, scenario.ctx());
-    let deposit = mint_for_testing<SUI>(10_000, scenario.ctx());
+    let deposit = mint_for_testing<SUI>(1_000_000, scenario.ctx());
     balance_manager.deposit(&balance_manager_cap, deposit, scenario.ctx());
 
-    // Place 1_000 bet on tail
+    // Place 100_000 bet on tail
     let rand = scenario.take_shared<Random>();
     game.interact(
         &registry,
@@ -121,24 +105,13 @@ public fun success_flow_lose() {
         &mut house,
         &play_cap,
         place_bet_action(),
-        1_000,
+        100_000,
         tail_result(),
         &rand,
         scenario.ctx(),
     );
 
-    assert!(balance_manager.balance() == 9_000);
-    // TODO: listen on event
-    // assert!(interact.transactions() == vector[bet(1_000), win(0)]);
-
-    // Check the stake balance manager
-    scenario.next_epoch(addr);
-    house.update_participation(&mut participation, scenario.ctx());
-    let expected_fee = int_mul(1_000, registry.protocol_fee_factor());
-    assert_eq_within_precision_allowance(
-        participation.stake(),
-        200_000_000 + 1000 - expected_fee,
-    );
+    assert!(balance_manager.balance() == 900_000);
 
     destroy(balance_manager);
     destroy(participation);

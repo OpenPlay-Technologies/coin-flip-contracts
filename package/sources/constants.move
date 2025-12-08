@@ -4,15 +4,9 @@ module coin_flip::constants;
 use std::string::{String, utf8};
 
 // === Constants ===
-const CURRENT_VERSION: u64 = 1; // Update version during upgrades
 const MAX_HOUSE_EDGE_BPS: u64 = 10_000; // This is 100% , so house always wins in that case
 const MAX_PAYOUT_FACTOR_BPS: u64 = 100_000_000; // This is 10_000 times the stake or 1_000_000%
 const MAX_RECENT_THROWS: u64 = 10;
-
-// === Public-View Functions ===
-public fun current_version(): u64 {
-    CURRENT_VERSION
-}
 
 public fun max_house_edge_bps(): u64 {
     MAX_HOUSE_EDGE_BPS

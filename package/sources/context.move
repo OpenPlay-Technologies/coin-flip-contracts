@@ -75,7 +75,7 @@ public(package) fun bet(self: &mut CoinFlipContext, stake: u64, prediction: Stri
     self.win = 0;
 }
 
-public(package) fun settle(self: &mut CoinFlipContext, result: String, win: u64) {
+public(package) fun settle_win(self: &mut CoinFlipContext, result: String, win: u64) {
     assert_valid_result(&result);
 
     // Transition status
@@ -86,6 +86,19 @@ public(package) fun settle(self: &mut CoinFlipContext, result: String, win: u64)
     // Update context
     self.result = result;
     self.win = win;
+}
+
+public(package) fun settle_loss(self: &mut CoinFlipContext, result: String) {
+    assert_valid_result(&result);
+
+    // Transition status
+    let new_status = settled_status();
+    self.assert_valid_state_transition(new_status);
+    self.status = new_status;
+
+    // Update context
+    self.result = result;
+    self.win = 0;
 }
 
 // === Private Functions ===

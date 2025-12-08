@@ -97,7 +97,8 @@ save_deployment_output() {
         "ORIGINAL_COIN_FLIP_PACKAGE_ID" \
         "COIN_FLIP_CAP" \
         "COIN_FLIP_UPGRADE_CAP" \
-        "COIN_FLIP_VERSION"
+        "COIN_FLIP_VERSION" \
+        "IMMUTABLE_TX_DIGEST"
     
     # Create latest symlink for easy access
     local latest_env="$output_dir/latest_coin_flip.env"
@@ -227,6 +228,26 @@ if [ -z "$COIN_FLIP_UPGRADE_CAP" ] || [ "$COIN_FLIP_UPGRADE_CAP" = "null" ]; the
     exit 1
 fi
 
+# Make package immutable by destroying the upgrade capability
+print_status "Making package immutable by destroying upgrade capability..."
+IMMUTABLE_OUTPUT=$(sui client call \
+    --package 0x2 \
+    --module 'package' \
+    --function 'make_immutable' \
+    --args "$COIN_FLIP_UPGRADE_CAP" \
+    --json 2>&1)
+
+# Check if the make_immutable call was successful
+if echo "$IMMUTABLE_OUTPUT" | jq -e '.effects.status.status == "success"' > /dev/null 2>&1; then
+    print_success "Package is now immutable - upgrade capability destroyed!"
+    # Extract transaction digest
+    IMMUTABLE_TX_DIGEST=$(echo "$IMMUTABLE_OUTPUT" | jq -r '.digest')
+else
+    print_error "Failed to make package immutable!"
+    echo "$IMMUTABLE_OUTPUT" | jq '.effects.status' 2>/dev/null || echo "$IMMUTABLE_OUTPUT"
+    exit 1
+fi
+
 # Get version number (this is a new deployment, so version 1)
 COIN_FLIP_VERSION=1
 
@@ -240,6 +261,7 @@ export ORIGINAL_COIN_FLIP_PACKAGE_ID
 export COIN_FLIP_VERSION
 export COIN_FLIP_CAP
 export COIN_FLIP_UPGRADE_CAP
+export IMMUTABLE_TX_DIGEST
 
 # Return to root directory
 cd ..
@@ -259,7 +281,8 @@ echo "  Version: $COIN_FLIP_VERSION"
 echo "  Current Package ID: $CURRENT_COIN_FLIP_PACKAGE_ID"
 echo "  Original Package ID: $ORIGINAL_COIN_FLIP_PACKAGE_ID"
 echo "  Cap: $COIN_FLIP_CAP"
-echo "  Upgrade Cap: $COIN_FLIP_UPGRADE_CAP"
+echo "  Upgrade Cap: $COIN_FLIP_UPGRADE_CAP (Destroyed - package is now immutable)"
+echo "  Immutable Tx: $IMMUTABLE_TX_DIGEST"
 echo ""
 print_status "Environment variables are now available in your current shell session."
 

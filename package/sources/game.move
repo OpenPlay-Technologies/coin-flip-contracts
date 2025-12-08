@@ -5,7 +5,6 @@ use coin_flip::constants::{
     tail_result,
     house_bias_result,
     place_bet_action,
-    current_version,
     max_house_edge_bps,
     max_payout_factor_bps,
     min_stake_param_name,
@@ -14,21 +13,20 @@ use coin_flip::constants::{
     payout_factor_bps_param_name
 };
 use coin_flip::context::{Self, CoinFlipContext};
-use coin_flip::state::{Self, CoinFlipState};
 use openplay_core::balance_manager::{BalanceManager, PlayCap};
 use openplay_core::game_stats::GameStatistics;
 use openplay_core::house::House;
 use openplay_core::parameter_store::{Self, ParameterStore};
 use openplay_core::registry::Registry;
-use openplay_core::transaction::{Transaction, bet, win};
-use std::option::none;
+use openplay_core::transaction::{Transaction, bet_checked, win_checked};
 use std::string::String;
 use std::uq32_32::{UQ32_32, from_quotient, int_mul};
+use sui::sui::SUI;
+use sui::coin::Coin;
 use sui::event::emit;
 use sui::random::{Random, RandomGenerator};
 use sui::table::{Self, Table};
 use sui::transfer::share_object;
-use sui::vec_set::{Self, VecSet};
 
 // === Errors ===
 const EUnsupportedHouseEdge: u64 = 1;
@@ -36,9 +34,6 @@ const EUnsupportedPayoutFactor: u64 = 2;
 const EUnsupportedStake: u64 = 3;
 const EUnsupportedPrediction: u64 = 4;
 const EUnsupportedAction: u64 = 5;
-const EPackageVersionDisabled: u64 = 6;
-const EVersionAlreadyAllowed: u64 = 7;
-const EVersionAlreadyDisabled: u64 = 8;
 const EInvalidParamStore: u64 = 9;
 
 // === Structs ===
@@ -46,10 +41,8 @@ public struct GAME has drop {}
 
 public struct Game has key {
     id: UID,
-    allowed_versions: VecSet<u64>,
     param_store_id: ID,
     contexts: Table<ID, CoinFlipContext>,
-    state: CoinFlipState, // Global state specific to the CoinFLip game
 }
 
 public struct CoinFlipCap has key, store {
@@ -81,7 +74,6 @@ fun init(_: GAME, ctx: &mut TxContext) {
 
 // === Public-View Functions ===
 public fun id(self: &Game): ID {
-    self.assert_version();
     self.id.to_inner()
 }
 
@@ -90,7 +82,6 @@ public fun transactions(interaction: &Interaction): vector<Transaction> {
 }
 
 public fun get_context(self: &mut Game, balance_manager: &BalanceManager): &CoinFlipContext {
-    self.assert_version();
     self.ensure_context(balance_manager.id());
     self.contexts.borrow(balance_manager.id())
 }
@@ -111,8 +102,6 @@ entry fun interact(
     random: &Random,
     ctx: &mut TxContext,
 ) {
-    self.assert_version();
-
     let house_tx_cap = house.borrow_tx_cap(&mut self.id);
 
     // Make sure we have enough funds in the house to play this game
@@ -138,7 +127,6 @@ entry fun interact(
         balance_manager,
         &interact.transactions(),
         play_cap,
-        none(),
         ctx,
     );
 
@@ -169,9 +157,6 @@ public fun admin_create(
     assert!(house_edge_bps < max_house_edge_bps(), EUnsupportedHouseEdge);
     assert!(payout_factor_bps < max_payout_factor_bps(), EUnsupportedPayoutFactor);
 
-    let mut allowed_versions = vec_set::empty();
-    allowed_versions.insert(current_version());
-
     // Setup the param store
     let mut param_store = parameter_store::new(ctx);
     let param_store_id = param_store.id();
@@ -182,10 +167,8 @@ public fun admin_create(
 
     let game = Game {
         id: object::new(ctx),
-        allowed_versions: allowed_versions,
         param_store_id,
         contexts: table::new(ctx),
-        state: state::empty(),
     };
 
     // Create game stats
@@ -194,14 +177,14 @@ public fun admin_create(
     (game, param_store, stats)
 }
 
-public fun admin_allow_version(self: &mut Game, _cap: &CoinFlipCap, version: u64) {
-    assert!(!self.allowed_versions.contains(&version), EVersionAlreadyAllowed);
-    self.allowed_versions.insert(version);
-}
-
-public fun admin_disallow_version(self: &mut Game, _cap: &CoinFlipCap, version: u64) {
-    assert!(self.allowed_versions.contains(&version), EVersionAlreadyDisabled);
-    self.allowed_versions.remove(&version);
+public fun admin_claim_fees(
+    _cap: &CoinFlipCap,
+    self: &mut Game,
+    house: &mut House,
+    ctx: &mut TxContext,
+): Coin<SUI> {
+    let house_tx_cap = house.borrow_tx_cap(&mut self.id);
+    house.tx_admin_claim_game_fees(house_tx_cap, ctx)
 }
 
 // === Public-Package Functions ===
@@ -212,7 +195,6 @@ public(package) fun interact_int(
     rand: &mut RandomGenerator,
 ) {
     // Validate the interaction
-    self.assert_version();
     self.validate_interact(param_store, interaction);
 
     let payout_factor = self.payout_factor(param_store);
@@ -225,7 +207,7 @@ public(package) fun interact_int(
     match (interaction.interact_type) {
         InteractionType::PLACE_BET { stake, prediction } => {
             // Place bet and deduct stake
-            interaction.transactions.push_back(bet(stake));
+            interaction.transactions.push_back(bet_checked(stake));
             context.bet(stake, prediction);
             // Generate result
             let x = rand.generate_u64_in_range(0, 10_000);
@@ -237,21 +219,17 @@ public(package) fun interact_int(
             } else {
                 result = tail_result();
             };
-            // Pay out winnings, or zero win if player lost
+            // Pay out winnings
             let payout;
             if (prediction == result) {
                 payout = int_mul(stake, payout_factor);
+                interaction.transactions.push_back(win_checked(payout));
+                context.settle_win(result, payout);
             } else {
-                payout = 0
+                context.settle_loss(result);
             };
-            interaction.transactions.push_back(win(payout));
-            // Update context
-            context.settle(result, payout);
         },
     };
-
-    // Update the state
-    self.state.process_context(context);
 }
 
 public(package) fun new_interact(
@@ -322,11 +300,6 @@ public fun max_stake(self: &Game, param_store: &ParameterStore): u64 {
 /// Gets the max payout of the game. This ensures that the vault has sufficient funds to accept the bet.
 fun max_payout(payout_factor: UQ32_32, stake: u64): u64 {
     int_mul(stake, payout_factor)
-}
-
-public fun assert_version(self: &Game) {
-    let package_version = current_version();
-    assert!(self.allowed_versions.contains(&package_version), EPackageVersionDisabled);
 }
 
 public fun assert_param_store(self: &Game, param_store: &ParameterStore) {

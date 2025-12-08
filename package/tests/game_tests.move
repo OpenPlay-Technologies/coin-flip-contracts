@@ -12,11 +12,11 @@ use coin_flip::game::{Self, new_interact, get_admin_cap_for_testing};
 use coin_flip::test_utils::default_game;
 use openplay_core::balance_manager;
 use openplay_core::core_test_utils::create_and_fix_random;
+use openplay_core::registry::registry_for_testing;
 use openplay_core::transaction::{bet, win};
+use std::unit_test::destroy;
 use sui::random::Random;
 use sui::test_scenario::{begin, return_shared};
-use sui::test_utils::destroy;
-use openplay_core::registry::registry_for_testing;
 
 #[test]
 public fun success_win_flow() {
@@ -37,7 +37,12 @@ public fun success_win_flow() {
     // Internal interact
     let rand = scenario.take_shared<Random>();
     let mut rand_generator = rand.new_generator(scenario.ctx());
-    let mut interact = new_interact(place_bet_action(), balance_manager.id(), head_result(), 100);
+    let mut interact = new_interact(
+        place_bet_action(),
+        balance_manager.id(),
+        head_result(),
+        100_000,
+    );
     game.interact_int(&param_store, &mut interact, &mut rand_generator);
 
     // Validate context
@@ -48,7 +53,7 @@ public fun success_win_flow() {
     assert!(context.player_won() == true);
 
     // Validate transactions
-    assert!(interact.transactions() == vector[bet(100), win(200)]);
+    assert!(interact.transactions() == vector[bet(100_000), win(200_000)]);
 
     destroy(game);
     destroy(balance_manager);
@@ -81,7 +86,12 @@ public fun success_lose_flow() {
     // Internal interact
     let rand = scenario.take_shared<Random>();
     let mut rand_generator = rand.new_generator(scenario.ctx());
-    let mut interact = new_interact(place_bet_action(), balance_manager.id(), tail_result(), 100);
+    let mut interact = new_interact(
+        place_bet_action(),
+        balance_manager.id(),
+        tail_result(),
+        100_000,
+    );
     game.interact_int(&param_store, &mut interact, &mut rand_generator);
 
     // Validate context
@@ -92,7 +102,7 @@ public fun success_lose_flow() {
     assert!(context.player_won() == false);
 
     // Validate transactions
-    assert!(interact.transactions() == vector[bet(100), win(0)]);
+    assert!(interact.transactions() == vector[bet(100_000)]);
 
     destroy(game);
     destroy(balance_manager);
@@ -135,7 +145,12 @@ public fun success_house_bias_flow() {
     // Internal interact
     let rand = scenario.take_shared<Random>();
     let mut rand_generator = rand.new_generator(scenario.ctx());
-    let mut interact = new_interact(place_bet_action(), balance_manager.id(), tail_result(), 100);
+    let mut interact = new_interact(
+        place_bet_action(),
+        balance_manager.id(),
+        tail_result(),
+        100_000,
+    );
     game.interact_int(&param_store, &mut interact, &mut rand_generator);
 
     // Validate context
@@ -146,7 +161,7 @@ public fun success_house_bias_flow() {
     assert!(context.player_won() == false);
 
     // Validate transactions
-    assert!(interact.transactions() == vector[bet(100), win(0)]);
+    assert!(interact.transactions() == vector[bet(100_000)]);
 
     destroy(game);
     destroy(balance_manager);
