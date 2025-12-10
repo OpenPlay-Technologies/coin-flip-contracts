@@ -21,8 +21,6 @@ use openplay_core::registry::Registry;
 use openplay_core::transaction::{Transaction, bet_checked, win_checked};
 use std::string::String;
 use std::uq32_32::{UQ32_32, from_quotient, int_mul};
-use sui::sui::SUI;
-use sui::coin::Coin;
 use sui::event::emit;
 use sui::random::{Random, RandomGenerator};
 use sui::table::{Self, Table};
@@ -106,7 +104,7 @@ entry fun interact(
 
     // Make sure we have enough funds in the house to play this game
     let payout_factor = self.payout_factor(param_store);
-    house.ensure_sufficient_funds(max_payout(payout_factor, stake), ctx);
+    house.ensure_sufficient_funds(registry, max_payout(payout_factor, stake), ctx);
 
     // Interact with coin flip game and record any transactions made
     let mut interact = new_interact(
@@ -175,16 +173,6 @@ public fun admin_create(
     let stats = registry.init_stats(&game.id, ctx);
 
     (game, param_store, stats)
-}
-
-public fun admin_claim_fees(
-    _cap: &CoinFlipCap,
-    self: &mut Game,
-    house: &mut House,
-    ctx: &mut TxContext,
-): Coin<SUI> {
-    let house_tx_cap = house.borrow_tx_cap(&mut self.id);
-    house.tx_admin_claim_game_fees(house_tx_cap, ctx)
 }
 
 // === Public-Package Functions ===

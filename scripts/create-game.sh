@@ -122,7 +122,7 @@ get_parameter_set() {
 # Function to load core environment variables from openplay-core repo
 load_core_variables() {
     local env="$1"
-    local core_repo="https://raw.githubusercontent.com/OpenPlay-Technologies/openplay-core/v2.1"
+    local core_repo="https://raw.githubusercontent.com/OpenPlay-Technologies/openplay-core/v3.1"
     local core_env_file="outputs/$env/latest.env"
     local local_core_env="outputs/$env/core_latest.env"
     

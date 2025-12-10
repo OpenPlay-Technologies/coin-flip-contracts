@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "62B1E33DF84765CCB0F371B0E0E5600FB001646500400188B31D40FAC4B1C17E"
+manifest_digest = "0D21CAA6C20CFBE34A4BDA48DCE109C6BDFB1B54211A07DAB5B0ECA1A4F714C0"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 dependencies = [
   { id = "Sui", name = "Sui" },
@@ -23,7 +23,7 @@ dependencies = [
 
 [[move.package]]
 id = "openplay_core"
-source = { git = "git@github.com:OpenPlay-Technologies/openplay-core.git", rev = "v2.1", subdir = "package" }
+source = { git = "git@github.com:OpenPlay-Technologies/openplay-core.git", rev = "v3.1", subdir = "package" }
 
 dependencies = [
   { id = "Sui", name = "Sui" },
@@ -38,8 +38,8 @@ flavor = "sui"
 
 [env.testnet]
 chain-id = "4c78adac"
-original-published-id = "0x9fcdc98532e10dc3bc15dec78244eb598b3a72e14d8249311329a535a8ad4459"
-latest-published-id = "0x9fcdc98532e10dc3bc15dec78244eb598b3a72e14d8249311329a535a8ad4459"
+original-published-id = "0xededaf86fe4893cdd8b40f522c6f1d0d012d3b899b65f01d7b18c8c6623f3024"
+latest-published-id = "0xededaf86fe4893cdd8b40f522c6f1d0d012d3b899b65f01d7b18c8c6623f3024"
 published-version = "1"
 
 [env.localnet]

@@ -25,10 +25,18 @@ public fun success_flow_win() {
     // Create a coinflip backend
     let registry = registry_for_testing(scenario.ctx());
     let (mut game, mut house, admin_cap, param_store, mut stats) = default_game(scenario.ctx());
-    house.admin_add_tx_allowed(&admin_cap, game.id());
+
+    // Create fee collector
+    let (fee_collector, fee_collector_cap) = house.admin_create_fee_collector(
+        &admin_cap,
+        scenario.ctx(),
+    );
+
+    // Assign game to fee collector
+    house.admin_add_tx_allowed_with_collector(&admin_cap, game.id(), &fee_collector);
 
     // Fund the house
-    let participation = fund_house_for_playing(&mut house, 200_000_000, scenario.ctx());
+    let participation = fund_house_for_playing(&mut house, &registry, 200_000_000, scenario.ctx());
     scenario.next_epoch(addr);
 
     // Create a balance manager with 1_000_000 stake
@@ -64,7 +72,8 @@ public fun success_flow_win() {
     destroy(admin_cap);
     destroy(param_store);
     destroy(stats);
-
+    destroy(fee_collector);
+    destroy(fee_collector_cap);
     return_shared(rand);
     destroy(house);
     scenario.end();
@@ -83,10 +92,18 @@ public fun success_flow_lose() {
     // Create a coinflip backend
     let registry = registry_for_testing(scenario.ctx());
     let (mut game, mut house, admin_cap, param_store, mut stats) = default_game(scenario.ctx());
-    house.admin_add_tx_allowed(&admin_cap, game.id());
+
+    // Create fee collector
+    let (fee_collector, fee_collector_cap) = house.admin_create_fee_collector(
+        &admin_cap,
+        scenario.ctx(),
+    );
+
+    // Assign game to fee collector
+    house.admin_add_tx_allowed_with_collector(&admin_cap, game.id(), &fee_collector);
 
     // Fund the house
-    let participation = fund_house_for_playing(&mut house, 200_000_000, scenario.ctx());
+    let participation = fund_house_for_playing(&mut house, &registry, 200_000_000, scenario.ctx());
     scenario.next_epoch(addr);
 
     // Create a balance manager with 1_000_000 stake
@@ -125,5 +142,7 @@ public fun success_flow_lose() {
     return_shared(rand);
     destroy(house);
     destroy(stats);
+    destroy(fee_collector);
+    destroy(fee_collector_cap);
     scenario.end();
 }

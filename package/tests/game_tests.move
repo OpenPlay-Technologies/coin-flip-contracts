@@ -22,7 +22,7 @@ use sui::test_scenario::{begin, return_shared};
 public fun success_win_flow() {
     // We create and fix random
     // The result will be HEAD
-    create_and_fix_random(x"1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1B");
+    create_and_fix_random(x"1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1A");
 
     // Start scenario
     let addr = @0xa;

@@ -230,12 +230,14 @@ fi
 
 # Make package immutable by destroying the upgrade capability
 print_status "Making package immutable by destroying upgrade capability..."
+# Note: We don't use 2>&1 here because sui client may print warnings to stderr
+# that would corrupt the JSON output (e.g., client/server version mismatch warnings)
 IMMUTABLE_OUTPUT=$(sui client call \
     --package 0x2 \
     --module 'package' \
     --function 'make_immutable' \
     --args "$COIN_FLIP_UPGRADE_CAP" \
-    --json 2>&1)
+    --json)
 
 # Check if the make_immutable call was successful
 if echo "$IMMUTABLE_OUTPUT" | jq -e '.effects.status.status == "success"' > /dev/null 2>&1; then
@@ -244,7 +246,12 @@ if echo "$IMMUTABLE_OUTPUT" | jq -e '.effects.status.status == "success"' > /dev
     IMMUTABLE_TX_DIGEST=$(echo "$IMMUTABLE_OUTPUT" | jq -r '.digest')
 else
     print_error "Failed to make package immutable!"
-    echo "$IMMUTABLE_OUTPUT" | jq '.effects.status' 2>/dev/null || echo "$IMMUTABLE_OUTPUT"
+    # Show the raw output first to help debug any parsing issues
+    echo "Raw output:"
+    echo "$IMMUTABLE_OUTPUT"
+    echo ""
+    echo "Parsed status (if available):"
+    echo "$IMMUTABLE_OUTPUT" | jq '.effects.status' 2>/dev/null || echo "(Could not parse JSON)"
     exit 1
 fi
 

@@ -23,7 +23,7 @@ public fun default_game(
         ctx,
     );
 
-    let (house, house_admin_cap) = house::new_for_testing(false, 10_000_000, 50, ctx);
+    let (house, house_admin_cap) = house::new_for_testing(false, 50, 50, 50, ctx);
 
     destroy(coin_flip_cap);
     destroy(registry);
