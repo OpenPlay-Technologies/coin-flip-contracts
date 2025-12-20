@@ -65,7 +65,7 @@ show_parameter_sets() {
     echo ""
     print_status "Available Coin Flip Parameter Sets:"
     echo ""
-    for set_num in 1 2; do
+    for set_num in 1 2 3 4; do
         get_parameter_set "$set_num" >/dev/null 2>&1
 
         # Calculate SUI values (integer division, but display both raw and SUI)
@@ -81,8 +81,21 @@ show_parameter_sets() {
             payout_factor="N/A"
         fi
 
+        # Determine description based on game type
+        case $GAME_TYPE in
+            ALWAYS_WIN)
+                description="Always win variant (house edge = 0)"
+                ;;
+            ALWAYS_LOSE)
+                description="Always lose variant (house edge = 9,999 bps)"
+                ;;
+            *)
+                description="Standard coin flip game"
+                ;;
+        esac
+
         echo "------------------------------------------------------------"
-        echo "Parameter Set $set_num: $GAME_TYPE - Standard coin flip game"
+        echo "Parameter Set $set_num: $GAME_TYPE - $description"
         echo "    Minimum Stake   : $min_stake_sui SUI"
         echo "    Maximum Stake   : $max_stake_sui SUI"
         echo "    House Edge      : $house_edge_percent% ($HOUSE_EDGE_BPS bps)"
@@ -110,6 +123,20 @@ get_parameter_set() {
             HOUSE_EDGE_BPS=200
             PAYOUT_FACTOR_BPS=20000
             GAME_TYPE="LOW_STAKE"
+            ;;
+        3)
+            MIN_STAKE=10000000
+            MAX_STAKE=1000000000
+            HOUSE_EDGE_BPS=0
+            PAYOUT_FACTOR_BPS=20000
+            GAME_TYPE="ALWAYS_WIN"
+            ;;
+        4)
+            MIN_STAKE=10000000
+            MAX_STAKE=1000000000
+            HOUSE_EDGE_BPS=9999
+            PAYOUT_FACTOR_BPS=20000
+            GAME_TYPE="ALWAYS_LOSE"
             ;;
         *)
             print_error "Invalid parameter set: $set_num"
