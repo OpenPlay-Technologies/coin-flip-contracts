@@ -132,7 +132,7 @@ public fun success_house_bias_flow() {
     let (mut game, param_store, stats) = game::admin_create(
         &coin_flip_cap,
         &mut registry,
-        0,
+        100_000, // min_stake must be >= min_transaction_amount (100_000)
         10_000_000,
         9_999,
         20_000,
@@ -169,6 +169,36 @@ public fun success_house_bias_flow() {
     destroy(coin_flip_cap);
     destroy(param_store);
     return_shared(rand);
+    destroy(registry);
+    destroy(stats);
+    scenario.end();
+}
+
+#[test, expected_failure(abort_code = game::EMinStakeBelowMinTransaction)]
+public fun fail_min_stake_below_min_transaction_amount() {
+    // Start scenario
+    let addr = @0xa;
+    let mut scenario = begin(addr);
+
+    // Attempt to create a game with min_stake below min_transaction_amount (100_000)
+    let mut registry = registry_for_testing(scenario.ctx());
+    let coin_flip_cap = get_admin_cap_for_testing(scenario.ctx());
+    
+    // This should fail because min_stake (99_999) < min_transaction_amount (100_000)
+    let (game, param_store, stats) = game::admin_create(
+        &coin_flip_cap,
+        &mut registry,
+        99_999, // Below min_transaction_amount of 100_000
+        10_000_000,
+        2_000,
+        20_000,
+        scenario.ctx(),
+    );
+
+    // Cleanup (won't be reached due to expected failure)
+    destroy(game);
+    destroy(coin_flip_cap);
+    destroy(param_store);
     destroy(registry);
     destroy(stats);
     scenario.end();

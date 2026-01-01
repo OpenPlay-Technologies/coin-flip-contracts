@@ -18,7 +18,7 @@ use openplay_core::game_stats::GameStatistics;
 use openplay_core::house::House;
 use openplay_core::parameter_store::{Self, ParameterStore};
 use openplay_core::registry::Registry;
-use openplay_core::transaction::{Transaction, bet_checked, win_checked};
+use openplay_core::transaction::{Transaction, bet_checked, win_checked, min_transaction_amount};
 use std::string::String;
 use std::uq32_32::{UQ32_32, from_quotient, int_mul};
 use sui::event::emit;
@@ -33,6 +33,7 @@ const EUnsupportedStake: u64 = 3;
 const EUnsupportedPrediction: u64 = 4;
 const EUnsupportedAction: u64 = 5;
 const EInvalidParamStore: u64 = 9;
+const EMinStakeBelowMinTransaction: u64 = 10;
 
 // === Structs ===
 public struct GAME has drop {}
@@ -154,6 +155,8 @@ public fun admin_create(
 ): (Game, ParameterStore, GameStatistics) {
     assert!(house_edge_bps < max_house_edge_bps(), EUnsupportedHouseEdge);
     assert!(payout_factor_bps < max_payout_factor_bps(), EUnsupportedPayoutFactor);
+    // Ensure min_stake is at least the minimum transaction amount required by openplay_core
+    assert!(min_stake >= min_transaction_amount(), EMinStakeBelowMinTransaction);
 
     // Setup the param store
     let mut param_store = parameter_store::new(ctx);

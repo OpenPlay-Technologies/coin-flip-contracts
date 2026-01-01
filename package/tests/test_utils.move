@@ -16,7 +16,7 @@ public fun default_game(
     let (game, param_store, stats) = game::admin_create(
         &coin_flip_cap,
         &mut registry,
-        0,
+        100_000, // min_stake must be >= min_transaction_amount (100_000)
         10_000_000,
         2_000,
         20_000,
